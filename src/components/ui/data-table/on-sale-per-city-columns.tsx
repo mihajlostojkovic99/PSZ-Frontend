@@ -1,15 +1,14 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../button"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 
 // This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
-export type PropertiesPerCity = {
+export type OnSalePerCity = {
 	city: string | null
 	value: number
 }
 
-export const columns: ColumnDef<PropertiesPerCity>[] = [
+export const totalOnSalePerCityColumns: ColumnDef<OnSalePerCity>[] = [
 	{
 		accessorKey: "city",
 		header: "Grad",
