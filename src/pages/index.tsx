@@ -1,5 +1,5 @@
 import { inter } from "@/lib/utils/fonts"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
@@ -25,14 +25,15 @@ export default function Home() {
 					Stranice sa zadacima
 				</h2>
 				<div className="flex mt-10 gap-4">
-					<Link
-						href="/two"
-						className={`${buttonVariants({ variant: "outline" })} w-40 border-gray-400`}
+					<Button
+						asChild
+						variant="outline"
+						disabled={loading}
 						onClick={() => setLoading(true)}
+						className="w-40 border-gray-400"
 					>
-						{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						Zadatak 2
-					</Link>
+						<Link href="/two">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Zadatak 2</Link>
+					</Button>
 				</div>
 			</div>
 		</main>
