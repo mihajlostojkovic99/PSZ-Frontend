@@ -2,14 +2,14 @@ import { ColumnDef } from "@tanstack/react-table"
 import { HousesForSale } from "@/lib/db/schema"
 
 // This type is used to define the shape of our data.
-export type PropertyInfo = Pick<
+export type HouseInfo = Pick<
 	HousesForSale,
-	"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
+	"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "landArea" | "numOfRooms" | "numOfBathrooms" | "price"
 > & {
 	rent?: boolean
 }
 
-export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
+export const houseInfoColumns: ColumnDef<HouseInfo>[] = [
 	{
 		accessorKey: "id",
 		header: "Pozicija",
@@ -54,15 +54,24 @@ export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
 	},
 	{
 		accessorKey: "sqMeters",
-		header: "Površina",
+		header: () => <div className="text-center">Površina</div>,
 		cell: ({ row }) => {
 			const area: number = row.getValue("sqMeters")
 
 			return (
-				<div>
+				<div className="text-center">
 					{area} m<sup>2</sup>
 				</div>
 			)
+		},
+	},
+	{
+		accessorKey: "landArea",
+		header: () => <div className="text-center">Površina zemljišta</div>,
+		cell: ({ row }) => {
+			const area: number = row.getValue("landArea")
+
+			return <div className="text-center">{area} ar</div>
 		},
 	},
 	{
