@@ -1,12 +1,13 @@
+import { Button } from "@/components/ui/button"
 import { inter } from "@/lib/utils/fonts"
-import { Button, buttonVariants } from "@/components/ui/button"
-import Link from "next/link"
 import { Loader2 } from "lucide-react"
-import { useState } from "react"
 import Head from "next/head"
+import Link from "next/link"
+import { useState } from "react"
 
 export default function Home() {
-	const [loading, setLoading] = useState(false)
+	const [loading1, setLoading1] = useState(false)
+	const [loading2, setLoading2] = useState(false)
 	return (
 		<main className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}>
 			<Head>
@@ -28,11 +29,20 @@ export default function Home() {
 					<Button
 						asChild
 						variant="outline"
-						disabled={loading}
-						onClick={() => setLoading(true)}
+						disabled={loading1}
+						onClick={() => setLoading1(true)}
 						className="w-40 border-gray-400"
 					>
-						<Link href="/two">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Zadatak 2</Link>
+						<Link href="/two">{loading1 && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Zadatak 2</Link>
+					</Button>
+					<Button
+						asChild
+						variant="outline"
+						disabled={loading2}
+						onClick={() => setLoading2(true)}
+						className="w-40 border-gray-400"
+					>
+						<Link href="/three">{loading2 && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Zadatak 3</Link>
 					</Button>
 				</div>
 			</div>

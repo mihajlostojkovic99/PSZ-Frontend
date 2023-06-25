@@ -13,14 +13,8 @@ export const totalOnSalePerCityColumns: ColumnDef<OnSalePerCity>[] = [
 		accessorKey: "city",
 		header: "Grad",
 		cell: ({ row }) => {
-			const city: string = row.getValue("city")
-			const arr = city.split(" ")
-			for (var i = 0; i < arr.length; i++) {
-				arr[i] = arr[i].charAt(0).toUpperCase() + arr[i].slice(1)
-			}
-			const formatted = arr.join(" ")
-
-			return <div>{formatted}</div>
+			const city: string | null = row.getValue("city")
+			return <div>{city || "Ostalo"}</div>
 		},
 	},
 	{
@@ -36,7 +30,7 @@ export const totalOnSalePerCityColumns: ColumnDef<OnSalePerCity>[] = [
 			)
 		},
 		cell: ({ row }) => {
-			const value = parseFloat(row.getValue("value"))
+			const value: number = row.getValue("value")
 
 			return <div className="text-right font-semibold">{value}</div>
 		},

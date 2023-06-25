@@ -1,102 +1,46 @@
 import { GetServerSideProps, InferGetServerSidePropsType } from "next"
 
-import { Pool } from "@neondatabase/serverless"
-import { drizzle } from "drizzle-orm/neon-serverless"
-import { sql, notInArray, isNotNull, desc } from "drizzle-orm"
-import { inter } from "@/lib/utils/fonts"
-import { Button } from "@/components/ui/button"
-import {
-	ApartmentsForRent,
-	ApartmentsForSale,
-	HousesForSale,
-	apartmentsForRent,
-	apartmentsForSale,
-	housesForRent,
-	housesForSale,
-} from "@/lib/db/schema"
 import { DataTable } from "@/components/ui/data-table/data-table"
-import { totalOnSalePerCityColumns } from "@/components/ui/data-table/on-sale-per-city-columns"
-import { SimpleTable } from "@/components/ui/simple-table"
-import { propertyInfoColumns } from "@/components/ui/data-table/property-info"
 import { houseInfoColumns } from "@/components/ui/data-table/house-info"
+import { totalOnSalePerCityColumns } from "@/components/ui/data-table/on-sale-per-city-columns"
+import { propertyInfoColumns } from "@/components/ui/data-table/property-info"
+import { SimpleTable } from "@/components/ui/simple-table"
+import { property, Property } from "@/lib/db/schema"
+import { inter } from "@/lib/utils/fonts"
+import { Pool } from "@neondatabase/serverless"
+import { desc, isNotNull, sql, eq, and, inArray } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/neon-serverless"
 import Head from "next/head"
 
 type Props = {
 	a: {
-		totalSale: number
-		totalRent: number
+		forSale: number
+		forRent: number
 	}
 	b: {
-		totalSalePerCity: {
-			city: string | null
-			value: number
-		}[]
-	}
+		city: string | null
+		value: number
+	}[]
 	c: {
-		houses: {
-			registered: number
-			unregistered: number
-		}
-		apartments: {
-			registered: number
-			unregistered: number
-		}
-	}
+		type: "house" | "apartment"
+		registered: boolean | null
+		count: number
+	}[]
 	d: {
-		top30Apartments: ApartmentsForSale[]
-		top30Houses: HousesForSale[]
+		top30Apartments: Property[]
+		top30Houses: Property[]
 	}
 	e: {
-		top100Apartments: Array<
-			Pick<
-				ApartmentsForSale,
-				"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-			> & {
-				rent: boolean
-			}
-		>
-		top100Houses: Array<
-			Pick<
-				HousesForSale,
-				"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-			> & {
-				rent: boolean
-			}
-		>
+		top100Apartments: Property[]
+		top100Houses: Property[]
 	}
 	f: {
-		newConstructionSale: Array<
-			Pick<
-				ApartmentsForSale,
-				"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-			>
-		>
-		newConstructionRent: Array<
-			Pick<
-				ApartmentsForRent,
-				"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-			> & {
-				rent: boolean
-			}
-		>
+		newConstructionSale: Property[]
+		newConstructionRent: Property[]
 	}
 	g: {
-		top30ByRooms: Array<
-			Pick<
-				ApartmentsForSale,
-				"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-			> & {
-				rent: boolean
-			}
-		>
-		top30HousesByArea: Array<
-			Pick<
-				HousesForSale,
-				"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "landArea" | "numOfRooms" | "numOfBathrooms" | "price"
-			> & {
-				rent: boolean
-			}
-		>
+		top30ByRooms: Property[]
+		top30HousesByArea: Property[]
 	}
 }
 
@@ -105,234 +49,86 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 	const db = drizzle(pool)
 
 	// a)
-	const aQuery = db.execute<{
-		propertiesForSale: number
-		propertiesForRent: number
-	}>(sql`
-	SELECT 
-		((SELECT COUNT(*) FROM apartments_for_sale WHERE enabled=true) +
-			(SELECT COUNT(*) FROM houses_for_sale WHERE enabled=true)) AS "propertiesForSale",
-		((SELECT COUNT(*) FROM apartments_for_rent WHERE enabled=true) +
-			(SELECT COUNT(*) FROM houses_for_rent WHERE enabled=true)) AS "propertiesForRent";`)
+	const aQuery = db
+		.select({ forSale: property.forSale, count: sql<string>`count(*)` })
+		.from(property)
+		.where(eq(property.enabled, true))
+		.groupBy(property.forSale)
 
 	// b)
-	const bQuery = db.execute<{
-		city: string | null
-		value: number
-	}>(sql`
-	SELECT city, SUM(value) as value
-	FROM 
-		(
-			(
-				SELECT city, count(*) as value
-				FROM houses_for_sale
-				WHERE city NOT IN ('srbija', 'crna gora', 'hrvatska', 'bosna i hercegovina')
-				GROUP BY city
-			)
-		UNION ALL 
-			(
-				SELECT city, count(*) as value
-				FROM houses_for_sale
-				WHERE city NOT IN ('srbija', 'crna gora', 'hrvatska', 'bosna i hercegovina')
-				GROUP BY city
-			)
-		) as joined_properties
-	GROUP BY joined_properties.city
-	ORDER BY value desc`)
+	const bQuery = db
+		.select({ city: property.city, count: sql<string>`count(*)` })
+		.from(property)
+		.where(and(eq(property.forSale, true), eq(property.enabled, true)))
+		.groupBy(property.city)
+		.orderBy(desc(sql`count`), property.city)
 
 	// c)
-	const registrationHousesForSaleQuery = db
-		.select({ registration: housesForSale.registration, count: sql<string>`count(*)` })
-		.from(housesForSale)
-		.where(isNotNull(housesForSale.registration))
-		.groupBy(housesForSale.registration)
-	const registrationHousesForRentQuery = db
-		.select({ registration: housesForRent.registration, count: sql<string>`count(*)` })
-		.from(housesForRent)
-		.where(isNotNull(housesForRent.registration))
-		.groupBy(housesForRent.registration)
-	const registrationApartmentsForSaleQuery = db
-		.select({ registration: apartmentsForSale.registration, count: sql<string>`count(*)` })
-		.from(apartmentsForSale)
-		.where(isNotNull(apartmentsForSale.registration))
-		.groupBy(apartmentsForSale.registration)
-	const registrationApartmentsForRentQuery = db
-		.select({ registration: apartmentsForRent.registration, count: sql<string>`count(*)` })
-		.from(apartmentsForRent)
-		.where(isNotNull(apartmentsForRent.registration))
-		.groupBy(apartmentsForRent.registration)
+	const cQuery = db
+		.select({ type: property.type, registered: property.registered, count: sql<string>`count(*)` })
+		.from(property)
+		.where(eq(property.enabled, true))
+		.groupBy(property.type, property.registered)
+		.orderBy(desc(sql`count`), property.type)
 
 	// d)
-	const top30ApartmentsQuery = db.select().from(apartmentsForSale).orderBy(desc(apartmentsForSale.price)).limit(30)
-	const top30HousesQuery = db.select().from(housesForSale).orderBy(desc(housesForSale.price)).limit(30)
+	const top30ApartmentsQuery = db
+		.select()
+		.from(property)
+		.where(and(eq(property.forSale, true), eq(property.type, "apartment"), eq(property.enabled, true)))
+		.orderBy(desc(property.price), property.city)
+		.limit(30)
+	const top30HousesQuery = db
+		.select()
+		.from(property)
+		.where(and(eq(property.forSale, true), eq(property.type, "house"), eq(property.enabled, true)))
+		.orderBy(desc(property.price), property.city)
+		.limit(30)
 
 	// e)
-	const top100HousesQuery = db.execute<
-		Pick<
-			HousesForSale,
-			"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-		> & {
-			rent: boolean
-		}
-	>(sql`
-		SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, rent
-		FROM (
-			(
-				SELECT url, title, year_built, location, sq_meters, num_of_rooms, num_of_bathrooms, price, enabled, FALSE as rent
-				FROM houses_for_sale
-			)
-			UNION ALL
-			(
-				SELECT url, title, year_built, location, sq_meters, num_of_rooms, num_of_bathrooms, price, enabled, TRUE as rent
-				FROM houses_for_rent
-			)
-		) AS joined_houses
-		WHERE sq_meters IS NOT NULL and enabled=TRUE
-		ORDER BY sq_meters DESC
-		LIMIT 100`)
-	const top100ApartmentsQuery = db.execute<
-		Pick<
-			ApartmentsForSale,
-			"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-		> & {
-			rent: boolean
-		}
-	>(sql`
-		SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, rent
-		FROM (
-			(
-				SELECT url, title, year_built, location, sq_meters, num_of_rooms, num_of_bathrooms, price, enabled, FALSE as rent
-				FROM apartments_for_sale
-			)
-			UNION ALL
-			(
-				SELECT url, title, year_built, location, sq_meters, num_of_rooms, num_of_bathrooms, price, enabled, TRUE as rent
-				FROM apartments_for_rent
-			)
-		) AS joined_apartments
-		WHERE sq_meters IS NOT NULL and enabled=TRUE
-		ORDER BY sq_meters DESC
-		LIMIT 100`)
+	const top100ApartmentsQuery = db
+		.select()
+		.from(property)
+		.where(and(eq(property.type, "apartment"), isNotNull(property.sqMeters), eq(property.enabled, true)))
+		.orderBy(desc(property.sqMeters), property.city)
+		.limit(100)
+	const top100HousesQuery = db
+		.select()
+		.from(property)
+		.where(and(eq(property.type, "house"), isNotNull(property.sqMeters), eq(property.enabled, true)))
+		.orderBy(desc(property.sqMeters), property.city)
+		.limit(100)
 
 	// f)
-	const newConstructionSaleQuery = db.execute<
-		Pick<
-			ApartmentsForSale,
-			"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-		>
-	>(sql`
-			SELECT *
-			FROM (
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price
-					FROM apartments_for_sale
-					WHERE enabled=TRUE
-				)
-				UNION ALL
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price
-					FROM houses_for_sale
-					WHERE enabled=TRUE
-				)
-			) as sale_properties
-			WHERE "yearBuilt" IN (2022, 2023)
-			ORDER BY price DESC, "yearBuilt" DESC`)
-	const newConstructionRentQuery = db.execute<
-		Pick<
-			ApartmentsForRent,
-			"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-		> & {
-			rent: boolean
-		}
-	>(sql`
-			SELECT *
-			FROM (
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, TRUE as rent
-					FROM apartments_for_rent
-					WHERE enabled=TRUE
-				)
-				UNION ALL
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, TRUE as rent
-					FROM houses_for_rent
-					WHERE enabled=TRUE
-				)
-			) as rent_properties
-			WHERE "yearBuilt" IN (2022, 2023)
-			ORDER BY price DESC, "yearBuilt" DESC`)
+	const newConstructionSaleQuery = db
+		.select()
+		.from(property)
+		.where(and(eq(property.forSale, true), inArray(property.yearBuilt, [2022, 2023]), eq(property.enabled, true)))
+		.orderBy(desc(property.price), property.yearBuilt)
+	const newConstructionRentQuery = db
+		.select()
+		.from(property)
+		.where(and(eq(property.forSale, false), inArray(property.yearBuilt, [2022, 2023]), eq(property.enabled, true)))
+		.orderBy(desc(property.price), property.yearBuilt)
 
 	// g)
-	const top30ByRoomsQuery = db.execute<
-		Pick<
-			ApartmentsForSale,
-			"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-		> & {
-			rent: boolean
-		}
-	>(sql`
-			SELECT *
-			FROM (
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, TRUE as rent
-					FROM apartments_for_rent
-					WHERE enabled=TRUE AND num_of_rooms IS NOT NULL
-				)
-				UNION ALL
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, TRUE as rent
-					FROM houses_for_rent
-					WHERE enabled=TRUE AND num_of_rooms IS NOT NULL
-				)
-				UNION ALL
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, FALSE as rent
-					FROM apartments_for_sale
-					WHERE enabled=TRUE AND num_of_rooms IS NOT NULL
-				)
-				UNION ALL
-				(
-					SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, FALSE as rent
-					FROM houses_for_sale
-					WHERE enabled=TRUE AND num_of_rooms IS NOT NULL
-				)
-			) as all_properties
-			ORDER BY "numOfRooms" DESC, price DESC
-			LIMIT 30
-		`)
-	const top30HousesByAreaQuery = db.execute<
-		Pick<
-			HousesForSale,
-			"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "landArea" | "numOfRooms" | "numOfBathrooms" | "price"
-		> & {
-			rent: boolean
-		}
-	>(sql`
-		SELECT *
-		FROM (
-			(
-				SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", land_area as "landArea", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, TRUE as rent
-				FROM houses_for_rent
-				WHERE enabled=TRUE AND land_area IS NOT NULL
-			)
-			UNION ALL
-			(
-				SELECT url, title, year_built as "yearBuilt", location, sq_meters as "sqMeters", land_area as "landArea", num_of_rooms as "numOfRooms", num_of_bathrooms as "numOfBathrooms", price, FALSE as rent
-				FROM houses_for_sale
-				WHERE enabled=TRUE AND land_area IS NOT NULL
-			)
-		) as all_houses
-		ORDER BY "landArea" DESC, price DESC
-		LIMIT 30
-	`)
+	const top30ByRoomsQuery = db
+		.select()
+		.from(property)
+		.where(and(isNotNull(property.numOfRooms), eq(property.enabled, true)))
+		.orderBy(desc(property.numOfRooms), property.city)
+		.limit(30)
+	const top30HousesByAreaQuery = db
+		.select()
+		.from(property)
+		.where(and(isNotNull(property.landArea), eq(property.enabled, true)))
+		.orderBy(desc(property.landArea), property.city)
+		.limit(30)
 
 	const [
 		aRes,
 		bRes,
-		registrationHousesForSale,
-		registrationHousesForRent,
-		registrationApartmentsForSale,
-		registrationApartmentsForRent,
+		cRes,
 		top30Apartments,
 		top30Houses,
 		top100Houses,
@@ -344,10 +140,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 	] = await Promise.all([
 		aQuery,
 		bQuery,
-		registrationHousesForSaleQuery,
-		registrationHousesForRentQuery,
-		registrationApartmentsForSaleQuery,
-		registrationApartmentsForRentQuery,
+		cQuery,
 		top30ApartmentsQuery,
 		top30HousesQuery,
 		top100HousesQuery,
@@ -358,35 +151,18 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 		top30HousesByAreaQuery,
 	])
 
-	const a = aRes.rows[0]
-	const b = bRes.rows
-	const c = {
-		houses: {
-			registered:
-				parseInt(registrationHousesForRent.find((val) => val.registration === true)?.count ?? "0") +
-				parseInt(registrationHousesForSale.find((val) => val.registration === true)?.count ?? "0"),
-			unregistered:
-				parseInt(registrationHousesForRent.find((val) => val.registration === false)?.count ?? "0") +
-				parseInt(registrationHousesForSale.find((val) => val.registration === false)?.count ?? "0"),
-		},
-		apartments: {
-			registered:
-				parseInt(registrationApartmentsForRent.find((val) => val.registration === true)?.count ?? "0") +
-				parseInt(registrationApartmentsForSale.find((val) => val.registration === true)?.count ?? "0"),
-			unregistered:
-				parseInt(registrationApartmentsForRent.find((val) => val.registration === false)?.count ?? "0") +
-				parseInt(registrationApartmentsForSale.find((val) => val.registration === false)?.count ?? "0"),
-		},
-	}
 	return {
 		props: {
-			a: { totalSale: a.propertiesForSale, totalRent: a.propertiesForRent },
-			b: { totalSalePerCity: b },
-			c,
+			a: {
+				forSale: +(aRes.find((val) => val.forSale)?.count || 0),
+				forRent: +(aRes.find((val) => !val.forSale)?.count || 0),
+			},
+			b: bRes.map((row) => ({ city: row.city, value: +row.count })),
+			c: cRes.map((row) => ({ type: row.type, registered: row.registered, count: +row.count })),
 			d: { top30Apartments, top30Houses },
-			e: { top100Apartments: top100Apartments.rows, top100Houses: top100Houses.rows },
-			f: { newConstructionSale: newConstructionSale.rows, newConstructionRent: newConstructionRent.rows },
-			g: { top30ByRooms: top30ByRooms.rows, top30HousesByArea: top30HousesByArea.rows },
+			e: { top100Apartments, top100Houses },
+			f: { newConstructionSale, newConstructionRent },
+			g: { top30ByRooms, top30HousesByArea },
 		},
 	}
 }
@@ -408,8 +184,8 @@ export default function Task2({ a, b, c, d, e, f, g }: InferGetServerSidePropsTy
 			<div className="my-6 mx-auto w-1/2 overflow-y-auto">
 				<SimpleTable
 					rows={[
-						{ name: "Nekretnina na prodaju", value: a.totalSale },
-						{ name: "Nekretnina na iznajmljivanje", value: a.totalRent },
+						{ name: "Nekretnina na prodaju", value: a.forSale },
+						{ name: "Nekretnina na iznajmljivanje", value: a.forRent },
 					]}
 				/>
 			</div>
@@ -418,7 +194,7 @@ export default function Task2({ a, b, c, d, e, f, g }: InferGetServerSidePropsTy
 				b) Izlistati koliko nekretnina se prodaje u svakom od gradova
 			</h2>
 			<div className="my-6 mx-auto w-1/2 overflow-y-auto">
-				<DataTable columns={totalOnSalePerCityColumns} data={b.totalSalePerCity} />
+				<DataTable columns={totalOnSalePerCityColumns} data={b} />
 			</div>
 
 			<h2 className="mt-10 mb-5 scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0">
@@ -426,17 +202,23 @@ export default function Task2({ a, b, c, d, e, f, g }: InferGetServerSidePropsTy
 			</h2>
 			<div className="my-6 mx-auto w-1/2 overflow-y-auto">
 				<SimpleTable
-					rows={[
-						{ name: "Uknjiženih stanova", value: c.apartments.registered },
-						{ name: "Neuknjiženih stanova", value: c.apartments.unregistered },
-						{ name: "Uknjiženih kuća", value: c.houses.registered },
-						{ name: "Neuknjiženih kuća", value: c.houses.unregistered },
-					]}
+					rows={c.reduce<{ name: string; value: number }[]>((acc, data) => {
+						if (data.type === "apartment" && data.registered) {
+							acc.push({ name: "Uknjiženih stanova", value: data.count })
+						} else if (data.type === "apartment" && !data.registered) {
+							acc.push({ name: "Neuknjiženih stanova", value: data.count })
+						} else if (data.type === "house" && data.registered) {
+							acc.push({ name: "Uknjiženih kuća", value: data.count })
+						} else if (data.type === "house" && !data.registered) {
+							acc.push({ name: "Neuknjiženih kuća", value: data.count })
+						}
+						return acc
+					}, [])}
 				/>
 			</div>
 
 			<h2 className="mt-10 mb-5 scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0">
-				d) Rang lista &quot;top 30&quot; stanova i kuća na prodaju
+				d) Najskuplje nekretnine na oglasima u Srbiji
 			</h2>
 			<h3 className="scroll-m-20 mb-2 text-2xl font-semibold tracking-tight">Top 30 stanova na prodaju</h3>
 			<DataTable columns={propertyInfoColumns} data={d.top30Apartments} />
@@ -444,7 +226,7 @@ export default function Task2({ a, b, c, d, e, f, g }: InferGetServerSidePropsTy
 			<DataTable columns={propertyInfoColumns} data={d.top30Houses} />
 
 			<h2 className="mt-10 mb-5 scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0">
-				e) Rang lista &quot;top 100&quot; stanova i kuća po površini
+				e) Najveće nekretnine na oglasima u Srbiji
 			</h2>
 			<h3 className="scroll-m-20 mb-2 text-2xl font-semibold tracking-tight">Top 100 stanova po površini</h3>
 			<p className="text-sm text-muted-foreground">

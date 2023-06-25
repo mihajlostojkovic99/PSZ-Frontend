@@ -1,15 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table"
-import { HousesForSale } from "@/lib/db/schema"
+import { Property } from "@/lib/db/schema"
 
-// This type is used to define the shape of our data.
-export type PropertyInfo = Pick<
-	HousesForSale,
-	"url" | "title" | "yearBuilt" | "location" | "sqMeters" | "numOfRooms" | "numOfBathrooms" | "price"
-> & {
-	rent?: boolean
-}
-
-export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
+export const propertyInfoColumns: ColumnDef<Property>[] = [
 	{
 		accessorKey: "id",
 		header: "Pozicija",
@@ -19,11 +11,11 @@ export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
 		accessorKey: "title",
 		header: "Naslov Oglasa",
 		cell: ({ row }) => {
-			const title: string = row.getValue("title")
-			const url = row.original.url
+			const title: string = row.getValue("title") ?? "Bez naslova."
+			const url = row.original.url ?? "#"
 
 			return (
-				<a href={url ?? "#"} target="_blank" className="font-medium underline underline-offset-4">
+				<a href={url} target="_blank" className="font-medium underline underline-offset-4">
 					{title.length > 45 ? title.substring(0, 44).concat("...") : title}
 				</a>
 			)
@@ -33,23 +25,25 @@ export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
 		accessorKey: "yearBuilt",
 		header: () => <div className="text-center">Godina Izgradnje</div>,
 		cell: ({ row }) => {
-			const year: number = row.getValue("yearBuilt")
+			const year: number | null = row.getValue("yearBuilt")
 
 			return <div className="text-center">{year ?? "/"}</div>
 		},
 	},
 	{
-		accessorKey: "location",
-		header: "Lokacija",
+		accessorKey: "city",
+		header: "Grad",
 		cell: ({ row }) => {
-			const location: string = row.getValue("location")
-			const nicerLocation = location.replace(",", ", ")
-			const arr = nicerLocation.split(" ")
-			for (var i = 0; i < arr.length; i++) {
-				arr[i] = arr[i].charAt(0).toUpperCase() + arr[i].slice(1)
-			}
-			const formatted = arr.join(" ")
-			return <div>{formatted}</div>
+			const city: string | null = row.getValue("city")
+			return <div>{city || "/"}</div>
+		},
+	},
+	{
+		accessorKey: "municipality",
+		header: "Opština",
+		cell: ({ row }) => {
+			const municipality: string | null = row.getValue("municipality")
+			return <div>{municipality || "/"}</div>
 		},
 	},
 	{
@@ -71,7 +65,7 @@ export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
 		cell: ({ row }) => {
 			const numOfRooms: number = row.getValue("numOfRooms")
 
-			return <div className="text-center">{numOfRooms}</div>
+			return <div className="text-center">{numOfRooms ?? "/"}</div>
 		},
 	},
 	{
@@ -88,16 +82,13 @@ export const propertyInfoColumns: ColumnDef<PropertyInfo>[] = [
 		header: () => <div className="text-center">Cena</div>,
 		cell: ({ row }) => {
 			const price: number = row.getValue("price")
-			const rent = row.original.rent
+			const forSale = row.original.forSale
 			const formatted = new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(price)
 
-			return rent === undefined ? (
+			return forSale ? (
 				<div className="text-center">{formatted}</div>
 			) : (
-				<div className="text-center">
-					{formatted}
-					{rent && " / mesečno"}
-				</div>
+				<div className="text-center">{formatted}/ mesečno</div>
 			)
 		},
 	},
