@@ -291,17 +291,45 @@ export default function Task3({ a, b, c, d, e, f }: InferGetServerSidePropsType<
 				data={e.map((data) => {
 					switch (data.priceBracket) {
 						case PriceBracket.veryLow:
-							return { label: "0-49999", value: data.count }
+							return {
+								label: `${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(
+									0
+								)}-${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(49999)}`,
+								value: data.count,
+							}
 						case PriceBracket.low:
-							return { label: "50000-99999", value: data.count }
+							return {
+								label: `${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(
+									50000
+								)}-${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(99999)}`,
+								value: data.count,
+							}
 						case PriceBracket.moderate:
-							return { label: "100000-149999", value: data.count }
+							return {
+								label: `${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(
+									100000
+								)}-${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(149999)}`,
+								value: data.count,
+							}
 						case PriceBracket.high:
-							return { label: "150000-199999", value: data.count }
+							return {
+								label: `${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(
+									150000
+								)}-${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(199999)}`,
+								value: data.count,
+							}
 						case PriceBracket.veryHigh:
-							return { label: "200000-499999", value: data.count }
+							return {
+								label: `${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(
+									200000
+								)}-${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(499999)}`,
+								value: data.count,
+							}
 						default:
-							return { label: "500000+", value: data.count }
+							return {
+								label: `${new Intl.NumberFormat("sr-RS", { style: "currency", currency: "EUR" }).format(500000)}+`,
+								value: data.count,
+							}
 					}
 				})}
 			/>
