@@ -8,6 +8,7 @@ import { useState } from "react"
 export default function Home() {
 	const [loading1, setLoading1] = useState(false)
 	const [loading2, setLoading2] = useState(false)
+	const [loading3, setLoading3] = useState(false)
 	return (
 		<main className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}>
 			<Head>
@@ -43,6 +44,15 @@ export default function Home() {
 						className="w-40 border-gray-400"
 					>
 						<Link href="/three">{loading2 && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Zadatak 3</Link>
+					</Button>
+					<Button
+						asChild
+						variant="outline"
+						disabled={loading2}
+						onClick={() => setLoading3(true)}
+						className="w-40 border-gray-400"
+					>
+						<Link href="/four">{loading3 && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Zadatak 4</Link>
 					</Button>
 				</div>
 			</div>
