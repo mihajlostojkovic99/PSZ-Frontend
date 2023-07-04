@@ -10,6 +10,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { distances } from "@/lib/municipalities"
+import { Loader2 } from "lucide-react"
 
 const checkboxes = [
 	{
@@ -123,10 +124,12 @@ export default function Task4() {
 		},
 	})
 
+	const [loading, setLoading] = useState(false)
 	const [prediction, setPrediction] = useState<number | undefined>(undefined)
 
 	const onSubmit = async (data: z.infer<typeof apartmentFormSchema>) => {
 		console.log(data)
+		setLoading(true)
 
 		const response = await fetch("/api/linear-regression", {
 			method: "POST",
@@ -138,6 +141,7 @@ export default function Task4() {
 
 		const result = await response.json()
 		setPrediction(result.predictedPrice)
+		setLoading(false)
 	}
 
 	return (
@@ -277,8 +281,8 @@ export default function Task4() {
 							}}
 						/>
 					))}
-					<Button type="submit" className="w-full bg-blue-400 hover:bg-blue-500">
-						Submit
+					<Button type="submit" disabled={loading} className="w-full bg-blue-400 hover:bg-blue-500">
+						{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generiši cenu
 					</Button>
 				</form>
 			</Form>
